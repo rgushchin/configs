@@ -1,0 +1,26 @@
+# passwords
+source 'echo "$( pw=$( secret-tool lookup user guro@fb.com domain outlook.office365.com ); echo set imap_pass=\"$pw\"; echo set smtp_pass=\"$pw\" )" |'
+
+# for imap
+set mail_check=300 # check mail every 5min
+set spoolfile=imaps://guro@fb.com@outlook.office365.com:993/INBOX
+set folder=imap://guro@fb.com@outlook.office365.com
+set record="=Sent Items"
+set postponed="=Drafts"
+
+# for SMTP
+set use_envelope_from=yes
+set realname="Roman Gushchin"
+set from=guro@fb.com # this is important some people have different email vs user name
+set smtp_url="smtp://guro@fb.com@outlook.office365.com:587"
+set smtp_authenticators="login"
+
+set editor="emacs %s"
+
+set message_cachedir = "~/.cache/mutt"
+set header_cache = ~/.cache/mutt
+
+set alias_file= ~/.mutt/aliases
+set sort_alias= alias
+set reverse_alias=yes
+source $alias_file
