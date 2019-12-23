@@ -1,0 +1,20 @@
+IMAPAccount fb
+Host outlook.office365.com
+User guro@fb.com
+PassCmd "secret-tool lookup user guro@fb.com domain outlook.office365.com"
+SSLType IMAPS
+
+IMAPStore fb-remote
+Account fb
+
+MaildirStore fb-local
+Subfolders Verbatim
+Path ~/.mail/fb/
+Inbox ~/.mail/fb/Inbox
+
+Channel fb
+Master :fb-remote:
+Slave :fb-local:
+Patterns *
+Create Both
+SyncState *

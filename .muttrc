@@ -1,13 +1,6 @@
 # passwords
 source 'echo "$( pw=$( secret-tool lookup user guro@fb.com domain outlook.office365.com ); echo set imap_pass=\"$pw\"; echo set smtp_pass=\"$pw\" )" |'
 
-# for imap
-set mail_check=300 # check mail every 5min
-set spoolfile=imaps://guro@fb.com@outlook.office365.com:993/INBOX
-set folder=imap://guro@fb.com@outlook.office365.com
-set record="=Sent Items"
-set postponed="=Drafts"
-
 # for SMTP
 set use_envelope_from=yes
 set realname="Roman Gushchin"
@@ -17,8 +10,13 @@ set smtp_authenticators="login"
 
 set editor="emacs %s"
 
-set message_cachedir = "~/.cache/mutt"
-set header_cache = ~/.cache/mutt
+set folder = "~/.mail/fb"
+set spoolfile = "+/Inbox"
+set postponed = "+/Drafts"
+set trash = "+/Deleted Items"
+set record = ""
+mailboxes "+/Inbox/mm"
+mailboxes "+/Inbox/kernel"
 
 set alias_file= ~/.mutt/aliases
 set sort_alias= alias
