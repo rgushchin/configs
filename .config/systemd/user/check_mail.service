@@ -1,0 +1,10 @@
+[Unit]
+Description=Check e-mail periodically
+
+[Service]
+Restart=always
+RestartSec=300s
+ExecStart=/bin/bash /home/guro/check_mail.sh
+
+[Install]
+WantedBy=default.target
