@@ -65,6 +65,7 @@
 (require 'magit)
 
 (global-set-key (kbd "<f4>") 'grep-using-ag)
+(global-set-key (kbd "<f5>") 'compile-bzImage)
 (global-set-key (kbd "<f6>") 'magit-status)
 (global-set-key (kbd "<f7>") 'magit-blame)
 
@@ -115,6 +116,8 @@
  '(custom-safe-themes
    (quote
     ("d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default)))
+ '(magit-commit-arguments (quote ("--signoff")))
+ '(magit-log-arguments (quote ("--decorate" "-n256")))
  '(package-selected-packages (quote (magit magit-filenotify solarized-theme)))
  '(safe-local-variable-values
    (quote
