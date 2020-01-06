@@ -3,10 +3,6 @@
 	name = Roman Gushchin
 [core]
 	editor = emacs -nw
-[sendemail]
-	smtpserver = smtp.gmail.com
-	smtpserverport = 587
-	smtpencryption = tls
-	smtpuser = guroan@gmail.com
-	smtppass = jhbbortjkbiourhi
-	from = Roman Gushchin <guro@fb.com>
+	abbrev = 12
+[alias]
+	ref = show -s --format=\"%h (\\\"%s\\\")\"
