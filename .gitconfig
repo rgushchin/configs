@@ -6,3 +6,4 @@
 	abbrev = 12
 [alias]
 	ref = show -s --format=\"%h (\\\"%s\\\")\"
+	my = log --oneline --author=\"Roman Gushchin\"

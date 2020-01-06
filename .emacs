@@ -55,6 +55,19 @@
 		    (read-string (format "ag [%s]: " str) nil nil str nil)))
       (set-buffer "*grep*"))))
 
+(defun git-ref-at-point ()
+  (shell-command-to-string (format "git ref %s 2>/dev/null" (word-at-point))))
+
+(defun expand-git-ref ()
+  (interactive)
+  (let ((hash (git-ref-at-point)))
+    (if (< 0 (length hash))
+      (progn
+	(goto-char (beginning-of-thing 'word))
+	(kill-word nil)
+	(insert hash))
+      (message "unknown revision"))))
+
 (defun compile-bzImage ()
   (interactive)
   (progn
@@ -62,12 +75,24 @@
     (setq compilation-auto-jump-to-first-error t)
     (compile "make bzImage -j16")))
 
+(defun insert-reviewed-by ()
+  (interactive)
+  (insert "Reviewed-by: Roman Gushchin <guro@fb.com>"))
+
+(defun insert-acked-by ()
+  (interactive)
+  (insert "Acked-by: Roman Gushchin <guro@fb.com>"))
+
 (require 'magit)
 
 (global-set-key (kbd "<f4>") 'grep-using-ag)
 (global-set-key (kbd "<f5>") 'compile-bzImage)
 (global-set-key (kbd "<f6>") 'magit-status)
 (global-set-key (kbd "<f7>") 'magit-blame)
+
+(global-set-key (kbd "M-g e") 'expand-git-ref-at-point)
+(global-set-key (kbd "M-g r") 'insert-reviewed-by)
+(global-set-key (kbd "M-g a") 'insert-acked-by)
 
 ;; Ido
 (require 'ido)
