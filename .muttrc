@@ -16,7 +16,7 @@ set postponed = "+/Drafts"
 set trash = "+/Deleted Items"
 set record = ""
 
-set alias_file= ~/.mutt/aliases
+set alias_file= ~/.mutt_aliases
 set sort_alias= alias
 set reverse_alias=yes
 source $alias_file

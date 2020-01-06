@@ -7,3 +7,6 @@
 [alias]
 	ref = show -s --format=\"%h (\\\"%s\\\")\"
 	my = log --oneline --author=\"Roman Gushchin\"
+[sendemail]
+	aliasesFile = ~/.mutt_aliases
+	aliasFileType = mutt
