@@ -19,36 +19,28 @@ def grep_authors():
         else:
             continue
 
+        #print("{%s}{%s}" % (name, mail))
         add_name_mail(name, mail)
 
 
-def grep_cc():
+def grep_log():
     proc = subprocess.run(['git', 'log', '-10000', '--grep=Cc:'], capture_output=True)
     raw = proc.stdout.decode('utf-8')
 
     for line in raw.split('\n'):
         line = line.lstrip()
-        if not line.startswith('Cc: '):
+        if not (line.startswith('Reviewed-by: ') or
+                line.startswith('Acked-by: ')):
             continue
-        if '@' not in line:
+
+        line = line[line.find(': ') + 2:]
+        name = line[:line.rfind(' ')]
+        mail = line[line.rfind(' ') + 2:-1]
+
+        if '@' not in mail:
             continue
 
-        if '<' in line:
-            line = line[4:line.find('>')]    
-            parts = line.split('<')
-
-            if len(parts) > 1:
-                name = parts[0].strip()
-                mail = parts[1].strip()
-
-        else:
-            parts = line.split(' ')
-            for part in parts:
-                if '@' in part:
-                    name = ""
-                    mail = part
-                    break
-
+        #print("{%s}{%s}" % (name, mail))
         add_name_mail(name, mail)
 
 
@@ -86,6 +78,6 @@ def gen_mutt_aliases():
 
 
 if __name__ == '__main__':
-    grep_cc()
+    grep_log()
     grep_authors()
     gen_mutt_aliases()
