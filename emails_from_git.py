@@ -3,7 +3,6 @@
 import subprocess
 
 mails={}
-names={}
 
 
 def grep_authors():
@@ -52,14 +51,6 @@ def add_name_mail(name, mail):
             mails[mail][name] = 1
     else:
         mails[mail] = {name: 1}
-
-    if name in names:
-        if mail in names[name]:
-            names[name][mail] += 1
-        else:
-            names[name][mail] = 1
-    else:
-        names[name] = {mail: 1}
 
 
 def gen_mutt_aliases():
