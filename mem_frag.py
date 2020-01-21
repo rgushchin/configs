@@ -1,10 +1,11 @@
-import drgn
+import sys, drgn
 from drgn import NULL, Object, cast, container_of, execscript, reinterpret, sizeof
 from drgn.helpers.linux import *
 from drgn.helpers.linux.mm import for_each_page, pfn_to_page
 
 
 PGHead = 1 << prog.constant('PG_head')
+PGSlab = 1 << prog.constant('PG_slab')
 
 
 def pages_to_GB(pages):
@@ -26,11 +27,20 @@ def PageHead(page):
     return page.flags & PGHead
 
 
+def PageSlab(page):
+    return page.flags & PGSlab
+
+
 def PageHeadHuge(page):
     if PageHead(page):
         return next_page(page).compound_dtor == prog.constant('HUGETLB_PAGE_DTOR')
     else:
         return False
+
+
+def PageBuddy(page):
+    type = page.page_type & 0x7ff
+    return type & 0x80
 
 
 def compound_order(page):
@@ -39,10 +49,22 @@ def compound_order(page):
     else:
         return 0
 
+
+def inspect_page(page):
+    if PageBuddy(page):
+        return True
+
+    if PageSlab(page):
+        
+
+    print(page)
+    return False
+
     
 def inspect_pfn_range(zone, start_pfn, max_pfn):
     ret = False
     page = cast("struct page *", prog["vmemmap_base"]) + start_pfn
+    desc = ""
 
     try:
         order = compound_order(page)
@@ -57,15 +79,14 @@ def inspect_pfn_range(zone, start_pfn, max_pfn):
                 desc = "unknown?? hugepage"
         else:
             for pfn in range(start_pfn, max_pfn):
-                if PageMovable(page):
+                page = cast("struct page *", prog["vmemmap_base"]) + pfn
+                if not inspect_page(page):
+                    break
 
-            desc = "()"
+    except drgn.FaultError as e:
+        desc = "error: %s" % e
 
-        print("    %-10d %s" % (start_pfn - zone.zone_start_pfn, desc))
-    except:
-        #print("bad pfn %s" % pfn)
-        pass
-
+    print("    %-10d (%s)" % (start_pfn - zone.zone_start_pfn, desc))
     return ret
 
 
