@@ -1,7 +1,8 @@
 import sys, drgn
 from drgn import NULL, Object, cast, container_of, execscript, reinterpret, sizeof
 from drgn.helpers.linux import *
-from drgn.helpers.linux.mm import for_each_page, pfn_to_page
+from drgn.helpers.linux.mm import for_each_page, pfn_to_page, _vmemmap
+from drgn.helpers.linux.fs import inode_paths
 
 
 PGLocked = 1 << prog.constant('PG_locked')
@@ -133,32 +134,35 @@ def compound_order(page):
 
 
 def inspect_slab_page(page):
-    print('      %s' % page.slab_cache.name.string_().decode('ascii'))
+    return "slab %s" % page.slab_cache.name.string_().decode('ascii')
 
 
 def inspect_page(page):
     if PageSlab(page):
-        inspect_slab_page(page)
-        return True
+        return inspect_slab_page(page)
+
+    desc = ""
+    if page._refcount.counter > 1:
+        if int(page.mapping) & 0x1 == 0:
+            desc = "file (deleted?)"
+
+            for p in inode_paths(page.mapping.host):
+                desc = 'file %s' % p.decode('ascii')
+                break
+        else:
+            desc = "anon (%s)" % page.mem_cgroup.css.cgroup.kn.name.string_().decode('ascii')
+        return desc
 
     if PageBuddy(page):
-        return False
+        return None
 
-    return False
-    # desc = page_flags(page)
-    # desc += ['mapping %d' % page.mapping]
-    # desc += ['type %d' % page.page_type]
-    # desc += ['order %d' % compound_order(page)]
-    # print(desc)
+    return None
 
-    
+
 def inspect_pfn_range(zone, start_pfn, step):
     huge = False
-    page = cast('struct page *', prog['vmemmap_base']) + start_pfn
+    page = cast('struct page *', _vmemmap(prog) + start_pfn)
     desc = ''
-
-    if start_pfn + step > zone.zone_start_pfn + zone.present_pages:
-        return False
 
     try:
         order = compound_order(page)
@@ -175,13 +179,18 @@ def inspect_pfn_range(zone, start_pfn, step):
         print('    %-10d (%s)' % (start_pfn, desc))
 
         if not huge:
-            n = 0
+            prev = set()
             for pfn in range(start_pfn, start_pfn + step):
-                page = cast('struct page *', prog['vmemmap_base']) + pfn
-                if inspect_page(page):
-                    n += 1
-                if n > 10:
-                    break
+                page = cast('struct page *', _vmemmap(prog) + pfn)
+                desc = inspect_page(page)
+                if desc:
+                    if desc in prev:
+                        continue
+                    print('        %s' % desc)
+                    prev.add(desc)
+                    if len(prev) > 10:
+                        print('        ...')
+                        break
 
     except drgn.FaultError as e:
         print('error: %s' % e)
@@ -194,6 +203,7 @@ def main():
     step = 1024 * 1024 * 1024 // 4096
     # 2MB step
     #step = 2 * 1024 * 1024 // 4096
+    potential = 0
     found = 0
     total = -1
 
@@ -229,11 +239,15 @@ def main():
             
             for pfn in range(start, zone.zone_start_pfn + zone.present_pages,
                              step):
+                if pfn + step > zone.zone_start_pfn + zone.present_pages:
+                    break
+
+                potential += 1
                 if inspect_pfn_range(zone, pfn, step):
                     found += 1
 
     print('--')
-    print('found %d of %d' % (found, total))
+    print('found %d of %d, potential max %d' % (found, total, potential))
 
 
 main()
