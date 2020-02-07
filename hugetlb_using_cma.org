@@ -1,0 +1,53 @@
+* 1GB pages, how do we use them?
+
+
+* Allocation challenges and memory fragmentation
+  The main problem with 1GB hugepages is that it's hard to manage them. With uptime
+  memory is getting fragmented fairly fast by different kinds of unmovable objects:
+  mostly, kernel internal data. Unlike userspace pages, which are accessed using
+  the virtual address space, kernel memory is mapped directly. So it's not possible
+  to unmap a page, move the data to a different location and map it back at the same
+  virtual address. More precisely, it can be done in a theory, but will complicate 
+  already complicated memory management subsystem a lot.
+
+  So currently 1GB hugepages can be only allocated on boot (using a kernel boot argument)
+  or immediately after, when the memory is mostly empty.
+
+** TODO: fragmented memory
+
+
+* Using the CMA allocator
+  CMA (Contiguous Memory Allocator) is a part of Linux memory management subsystem
+  responsible for allocating large block of physically contiguously memory. It has been
+  developed mostly for using by different device drivers, which might need a chunk of 
+  physically contiguous memory to share with a device. But there are other use cases too:
+  for instance, it's used by kvm on powerpc in order to allocate space for guest system
+  pagetable. More details on CMA can be found in this good, but a bit out-dated article:
+  https://lwn.net/Articles/486301/
+
+  So I decided to try using CMA to allocate 1GB hugepages dynamically. It can't be done
+  straight away, because the CMA allocator uses some pre-configured memory areas, which
+  are allocated on boot. Non of the existing areas are big enough for our purposes.
+  The solution was to add a kernel boot argument, which allows to spawn an additional 
+  cma area of a given size. If it needs to spawn an area on boot, why it's better than
+  just pre-allocating 1GB hugepages on boot? Simple because the memory can be used by
+  others even if nobody is using it to allocate hugepages. It can be used for the majority
+  of purposes like pagecache and anonymous userspace memory, but can't be used for
+  putting unmovable kernel objects. If the area is relatively small, it shouldn't play
+  a big role: kernel data doesn't usually consume 50% of total memory.
+
+** TODO: cma area used by userspace
+
+  It worked pretty well and with a fairly small amount of code it made possible
+  to allocate 1GB pages on machines with pretty long uptime and well fragmented memory.
+
+** TODO: cma area with 1GB pages
+
+  It went went but not without any issues: one of them is that 2MB huge pages can 
+  fragment the CMA area. There are two "kinds" of 2MB pages: generic (hugetlb) and 
+  so called transparent huge pages (THP). Rik van Riel volunteered to help with 
+  2MB THPs, which have to made movable in order to leave the cma area on demand. 
+  It's probably the trickiest puzzle to solve here.
+
+
+* How to use it
