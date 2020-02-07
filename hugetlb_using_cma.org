@@ -50,4 +50,6 @@
   It's probably the trickiest puzzle to solve here.
 
 
-* How to use it
+* What's next
+  Hostprofile team is working hard to add support for 1GB hugepages on twshared.
+  This will allow to 
