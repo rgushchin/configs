@@ -12,8 +12,8 @@ qemu-system-x86_64 \
     -no-reboot \
     -smp 2 \
     -device e1000,netdev=user.0 -netdev user,id=user.0,hostfwd=tcp::10022-:22 \
-    -kernel ${KERNEL} ${1} \
-    -append "root=${ROOTFS} ${CGROUPV2} console=ttyS0,115200" \
+    -kernel ${KERNEL} \
+    -append "root=${ROOTFS} ${CGROUPV2} console=ttyS0,115200" ${1} \
     -nographic
 
 
