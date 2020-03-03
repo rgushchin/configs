@@ -56,7 +56,7 @@
       (set-buffer "*grep*"))))
 
 (defun git-ref-at-point ()
-  (shell-command-to-string (format "git ref %s 2>/dev/null" (word-at-point))))
+  (shell-command-to-string (format "git ref %s 2>/dev/null" (symbol-at-point))))
 
 (defun expand-git-ref ()
   (interactive)
@@ -90,7 +90,7 @@
 (global-set-key (kbd "<f6>") 'magit-status)
 (global-set-key (kbd "<f7>") 'magit-blame)
 
-(global-set-key (kbd "M-g e") 'expand-git-ref-at-point)
+(global-set-key (kbd "M-g e") 'expand-git-ref)
 (global-set-key (kbd "M-g r") 'insert-reviewed-by)
 (global-set-key (kbd "M-g a") 'insert-acked-by)
 
@@ -138,6 +138,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(column-number-mode t)
  '(custom-safe-themes
    (quote
     ("d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default)))
@@ -161,14 +162,10 @@
 	   0)
      (eval c-set-offset
 	   (quote substatement-open)
-	   0)))))
+	   0))))
+ '(show-paren-mode t)
+ '(tool-bar-mode nil))
 
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
 
 ;(load-theme 'solarized-light)
 (load-theme 'leuven)

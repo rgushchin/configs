@@ -10,7 +10,7 @@ qemu-system-x86_64 \
     -m 8192 \
     -drive if=virtio,file=/home/guro/vms/fedora.img,format=qcow2 \
     -no-reboot \
-    -smp 2 \
+    -smp 4 \
     -device e1000,netdev=user.0 -netdev user,id=user.0,hostfwd=tcp::10022-:22 \
     -kernel ${KERNEL} \
     -append "root=${ROOTFS} ${CGROUPV2} console=ttyS0,115200 ${1}" \
