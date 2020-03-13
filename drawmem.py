@@ -132,33 +132,52 @@ def compound_order(page):
 
 
 def draw_pages(pages, min_pfn, max_pfn):
-    width = 512
-    res = 32
-    height = 1 + (max_pfn - min_pfn) // res // width
+    pages_per_block = 1024 * 1024 * 1024 // 4096
+    block_size = 64
+    blocks_in_row = 8
+
+    width = block_size * blocks_in_row + 2 * (blocks_in_row - 1)
+    blocks = math.ceil((max_pfn - min_pfn) / pages_per_block)
+    height = block_size * math.ceil(blocks / blocks_in_row) * (blocks // blocks_in_row - 1)
     img = Image.new("RGB", (width, height))
     pixels = img.load()
+
+    res = pages_per_block // block_size // block_size
     
     for pfn in range(min_pfn, max_pfn, res):
-        x = pfn // res % width
-        y = pfn // res // width
+        block = pfn // pages_per_block
+        off = (pfn % pages_per_block) // res
+
+        block_x = (block % blocks_in_row)
+        block_y = (block // blocks_in_row)
+
+        x = block_size * block_x + 2 * block_x
+        y = block_size * block_y + 2 * block_y
+
+        x += off % block_size
+        y += off // block_size
 
         color = [20, 20, 230]
 
-        for off in range(res):
-            if pfn + off >= max_pfn:
+        for i in range(res):
+            if pfn + i >= max_pfn:
                 break;
-            if pages[pfn + off] == -1:
+            if pages[pfn + i] == -1:
                 color = [20, 20, 20]
                 break
-            elif pages[pfn + off] == 1:
+            elif pages[pfn + i] == 1:
                 color = [215, 20, 20]
-            elif pages[pfn + off] == 0:
+            elif pages[pfn + i] == 0:
                 color[0] += 210 // res
                 color[1] += 210 // res
 
-        pixels[x, y] = tuple(color)
+        try:
+            pixels[x, y] = tuple(color)
+        except:
+            print("x %d y %d block %d off %d color %s" % (x, y, block, off, color))
+            raise
 
-    img.show()
+    img.save("mem.png")
 
 
 def main():
