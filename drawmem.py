@@ -1,4 +1,5 @@
-import math 
+import math, time
+import pickle
 from PIL import Image, ImageDraw  
 import sys, drgn
 from drgn import NULL, Object, cast, container_of, execscript, reinterpret, sizeof
@@ -157,7 +158,7 @@ def draw_pages(pages, min_pfn, max_pfn):
         x += off % block_size
         y += off // block_size
 
-        color = [20, 20, 230]
+        color = [40, 60, 200]
 
         for i in range(res):
             if pfn + i >= max_pfn:
@@ -166,21 +167,26 @@ def draw_pages(pages, min_pfn, max_pfn):
                 color = [20, 20, 20]
                 break
             elif pages[pfn + i] == 1:
-                color = [215, 20, 20]
+                color = [166, 33, 39]
+            elif pages[pfn + i] == 3:
+                color = [174, 244, 255]
             elif pages[pfn + i] == 0:
-                color[0] += 210 // res
-                color[1] += 210 // res
+                color[0] += 200 / res
+                color[1] += 180 / res
+                color[2] += 40 / res
 
         try:
-            pixels[x, y] = tuple(color)
+            pixels[x, y] = (int(color[0]), int(color[1]), int(color[2]))
         except:
             print("x %d y %d block %d off %d color %s" % (x, y, block, off, color))
             raise
 
-    img.save("mem.png")
+    #img.show()
+    img.save("mem_" + time.strftime("%H_%M_%S_%m_%d_%y") + ".png")
 
 
-def main():
+def save():
+    data = {}
     pages = {}
 
     min_pfn = 0
@@ -196,19 +202,57 @@ def main():
             if int(zone.zone_start_pfn) + int(zone.spanned_pages) > max_pfn:
                 max_pfn = int(zone.zone_start_pfn + zone.spanned_pages)
 
-    for pfn in range(min_pfn, max_pfn):
+    pfn = min_pfn
+    while pfn < max_pfn:
+        order = 0
+
         try:
             page = cast('struct page *', _vmemmap(prog) + pfn)
-            if PageSlab(page):
+
+            if PageHeadHuge(page):
+                pages[pfn] = 3
+                order = compound_order(page)
+            elif PageSlab(page):
                 pages[pfn] = 1
             elif PageBuddy(page):
                 pages[pfn] = 0
             else:
                 pages[pfn] = 2
+
+            if order > 0:
+                for p in range(1, 1 << order):
+                    pages[pfn + p] = pages[pfn]
         except:
             pages[pfn] = -1
-        
-    draw_pages(pages, min_pfn, max_pfn)
+
+        pfn += (1 << order)
+
+    data['min_pfn'] = min_pfn
+    data['max_pfn'] = max_pfn
+    data['pages'] = pages
+
+    with open(".drawmem", "wb") as fd:
+        pickle.dump(data, fd)
+
+
+def draw():
+    data = {}
+    with open(".drawmem", "rb") as fd:
+        data = pickle.load(fd)
+
+    draw_pages(data['pages'], data['min_pfn'], data['max_pfn'])
+
+
+def main():
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'save':
+            save()
+            return
+        elif sys.argv[1] == 'draw':
+            draw()
+            return
+
+    print("%s <save / draw>" % sys.argv[0])
 
 
 main()
