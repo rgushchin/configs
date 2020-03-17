@@ -1,97 +1,16 @@
 import math, time
 import pickle
 from PIL import Image, ImageDraw  
+
 import sys, drgn
-from drgn import NULL, Object, cast, container_of, execscript, reinterpret, sizeof
+
+from drgn import Object, cast
 from drgn.helpers.linux import *
-from drgn.helpers.linux.mm import for_each_page, pfn_to_page, _vmemmap
-from drgn.helpers.linux.fs import inode_paths
+from drgn.helpers.linux.mm import pfn_to_page, _vmemmap
 
 
-PGLocked = 1 << prog.constant('PG_locked')
-PGReferenced = 1 << prog.constant('PG_referenced')
-PGUptodate = 1 << prog.constant('PG_uptodate')
-PGDirty = 1 << prog.constant('PG_dirty')
-PGLru = 1 << prog.constant('PG_lru')
-PGActive = 1 << prog.constant('PG_active')
-PGWorkingset = 1 << prog.constant('PG_workingset')
-PGWaiters = 1 << prog.constant('PG_waiters')
-PGError = 1 << prog.constant('PG_error')
 PGSlab = 1 << prog.constant('PG_slab')
-PGOwner_priv_1 = 1 << prog.constant('PG_owner_priv_1')
-PGArch_1 = 1 << prog.constant('PG_arch_1')
-PGReserved = 1 << prog.constant('PG_reserved')
-PGPrivate = 1 << prog.constant('PG_private')
-PGPrivate_2 = 1 << prog.constant('PG_private_2')
-PGWriteback = 1 << prog.constant('PG_writeback')
 PGHead = 1 << prog.constant('PG_head')
-PGMappedtodisk = 1 << prog.constant('PG_mappedtodisk')
-PGReclaim = 1 << prog.constant('PG_reclaim')
-PGSwapbacked = 1 << prog.constant('PG_swapbacked')
-PGUnevictable = 1 << prog.constant('PG_unevictable')
-PGMlocked = 1 << prog.constant('PG_mlocked')
-PGUncached = 1 << prog.constant('PG_uncached')
-PGHwpoison = 1 << prog.constant('PG_hwpoison')
-
-
-def page_flags(page):
-    flags = page.flags
-    ret = []
-
-    if flags & PGHead:
-        ret += ['head']
-    if flags & PGSlab:
-        ret += ['slab']
-    if flags & PGLocked:
-        ret += ['locked']
-    if flags & PGReferenced:
-        ret += ['referenced']
-    if flags & PGUptodate:
-        ret += ['uptodate']
-    if flags & PGDirty:
-        ret += ['dirty']
-    if flags & PGLru:
-        ret += ['lru']
-    if flags & PGActive:
-        ret += ['active']
-    if flags & PGWorkingset:
-        ret += ['workingset']
-    if flags & PGWaiters:
-        ret += ['waiters']
-    if flags & PGError:
-        ret += ['error']
-    if flags & PGSlab:
-        ret += ['slab']
-    if flags & PGOwner_priv_1:
-        ret += ['owner_priv_1']
-    if flags & PGArch_1:
-        ret += ['arch_1']
-    if flags & PGReserved:
-        ret += ['reserved']
-    if flags & PGPrivate:
-        ret += ['private']
-    if flags & PGPrivate_2:
-        ret += ['private_2']
-    if flags & PGWriteback:
-        ret += ['writeback']
-    if flags & PGHead:
-        ret += ['head']
-    if flags & PGMappedtodisk:
-        ret += ['mappedtodisk']
-    if flags & PGReclaim:
-        ret += ['reclaim']
-    if flags & PGSwapbacked:
-        ret += ['swapbacked']
-    if flags & PGUnevictable:
-        ret += ['unevictable']
-    if flags & PGMlocked:
-        ret += ['mlocked']
-    if flags & PGUncached:
-        ret += ['uncached']
-    if flags & PGHwpoison:
-        ret += ['hwpoison']
-
-    return ret
 
 
 def for_each_online_node():
@@ -202,6 +121,8 @@ def save():
             if int(zone.zone_start_pfn) + int(zone.spanned_pages) > max_pfn:
                 max_pfn = int(zone.zone_start_pfn + zone.spanned_pages)
 
+    slabs = 0
+    slab_mem = 0
     pfn = min_pfn
     while pfn < max_pfn:
         order = 0
@@ -209,15 +130,20 @@ def save():
         try:
             page = cast('struct page *', _vmemmap(prog) + pfn)
 
-            if PageHeadHuge(page):
-                pages[pfn] = 3
+            if PageHead(page):
                 order = compound_order(page)
-            elif PageSlab(page):
+
+            if PageSlab(page):
                 pages[pfn] = 1
+                slabs += 1
+                slab_mem += 4096 << order
             elif PageBuddy(page):
                 pages[pfn] = 0
             else:
                 pages[pfn] = 2
+
+            if PageHeadHuge(page):
+                pages[pfn] = 3
 
             if order > 0:
                 for p in range(1, 1 << order):
@@ -231,6 +157,7 @@ def save():
     data['max_pfn'] = max_pfn
     data['pages'] = pages
 
+    print("slabs %d mem %d" % (slabs, slab_mem))
     with open(".drawmem", "wb") as fd:
         pickle.dump(data, fd)
 
