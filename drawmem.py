@@ -41,7 +41,7 @@ def PageHeadHuge(page):
 
 def PageBuddy(page):
     type = page.page_type & 0x7ff
-    return type & 0x80
+    return not type & 0x80
 
 
 def compound_order(page):
@@ -121,7 +121,9 @@ def save():
             if int(zone.zone_start_pfn) + int(zone.spanned_pages) > max_pfn:
                 max_pfn = int(zone.zone_start_pfn + zone.spanned_pages)
 
-    slabs = 0
+    free = 0
+    free_mem = 0
+    slab = 0
     slab_mem = 0
     pfn = min_pfn
     while pfn < max_pfn:
@@ -135,10 +137,11 @@ def save():
 
             if PageSlab(page):
                 pages[pfn] = 1
-                slabs += 1
+
                 slab_mem += 4096 << order
             elif PageBuddy(page):
                 pages[pfn] = 0
+                free_mem += 4096 << order
             else:
                 pages[pfn] = 2
 
@@ -157,7 +160,20 @@ def save():
     data['max_pfn'] = max_pfn
     data['pages'] = pages
 
-    print("slabs %d mem %d" % (slabs, slab_mem))
+    with open("/proc/meminfo") as fd:
+        for line in fd:
+            if line.startswith("MemFree:"):
+                free = int(line.split()[1])
+            elif line.startswith("Slab:"):
+                slab = int(line.split()[1])
+
+    print("        %10s %10s" %
+          ("free", "slab"))
+    print("actual: %10d %10d" %
+          (free, slab))
+    print("found:  %10d %10d" %
+          (free_mem / 1024, slab_mem / 1024))
+
     with open(".drawmem", "wb") as fd:
         pickle.dump(data, fd)
 
