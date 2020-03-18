@@ -40,10 +40,7 @@ def PageHeadHuge(page):
 
 
 def PageBuddy(page):
-    type = page.page_type
-    if type & 0x7ff:
-        return false
-    return type & 0x80 == 0
+    return page.page_type & (0xf0000000 | 0x80) == 0xf0000000
 
 
 def compound_order(page):
@@ -143,6 +140,7 @@ def save():
                 slab_mem += 4096 << order
             elif PageBuddy(page):
                 pages[pfn] = 0
+                order = int(page.private)
                 free_mem += 4096 << order
             else:
                 pages[pfn] = 2
