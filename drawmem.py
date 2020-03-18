@@ -40,8 +40,10 @@ def PageHeadHuge(page):
 
 
 def PageBuddy(page):
-    type = page.page_type & 0x7ff
-    return not type & 0x80
+    type = page.page_type
+    if type & 0x7ff:
+        return false
+    return type & 0x80 == 0
 
 
 def compound_order(page):
