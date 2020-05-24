@@ -61,13 +61,15 @@ def guess_version():
     if '.' not in branch:
         return None
     version = '.'.join(branch.split('.')[1:])
+    if version[0].isnumeric():
+        version = "v%s" % version
     return version
 
 
 def format_patches(obj, cover, version):
     cmd = 'git format-patch %s --cover-letter' % obj
     if version:
-        cmd += ' --subject-prefix=\"PATCH v%s\"' % version
+        cmd += ' --subject-prefix=\"PATCH %s\"' % version
     subprocess.getoutput(cmd)
 
     with open('0000-cover-letter.patch') as fd:
