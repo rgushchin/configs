@@ -1,0 +1,52 @@
+Recent changes in the kernel memory accounting or how to make the kernel ~40% more memory effective
+
+Not a long time ago, memcg accounting used the same approach for all types of pages.
+Each charged page had a pointer at a memory cgroup and held a single reference, so that
+the memory cgroup structure was pinned in the memory by all charged pages.
+
+This approach was simple and nice in terms of the code complexity, but didn't work well with
+some kernel objects, which are by their nature often shared between memory cgroups. E.g. an inode
+or a denty can effectively outlive the original memory cgroup, because it can be actively used
+by someone else. Because there was no mechanism for the ownership change, the original memory cgroup
+got pinned in the memory, and only a very heavy memory pressure could get rid of it. This lead
+to a so called dying memory cgroups problem: an accumulation of dying memory cgroups with uptime.
+
+It has been solved by switching to an indirect scheme, where slab pages didn't reference
+the memory cgroup directly, but used a memcg pointer in the corresponding kmem cache, which
+could be atomically swapped to the parent memory cgroup. With an introduction of kmem_cache
+reference counters it allowed to solve the dying memcg problem, but made the corresponding
+code even more complex: dynamic creation and destruction of per-memcg slab caches required
+a tricky coordination between multiple objects with different life cycles.
+
+And the resulting approach still had a serious flow: each memory cgroup had it's own set of
+kmem_caches and corresponding slab pages. On a modern system with many memory cgroups it resulted
+in a poor slab utilization, which varied around 50% in my case. This makes the accounting
+quite expensive: disabling it reduced the kernel footprint by ~40-50% (but, of course, breaks
+the isolation).
+
+To solve this problem the accounting has to be moved from a page level to an object level.
+If individual slab objects can be effectively accounted on individual level, there is no more need
+to create per-memcg slab caches. A single set of slab caches and slab pages can be used by all
+memory cgroups, which brings the slab utilization back to >90% and saves ~40% of total kernel memory.
+To keep the reparenting working and not reintroduce the dying memcg problem, an intermediate
+accounting vessel called obj_cgroup is introduced. Of course, some memory has to be used to store
+an objcg pointer for each slab object, but it's by far smaller than the consequence of a poor
+slab utilization. The proposed new slab controller [1] implements a per-object accounting approach.
+It has been used on the Facebook production hosts for many months and brought significant memory
+savings in a range of 1 GB per host and more without any known regressions.
+
+The object-level approach can be used to add an effective accounting of objects, which are by their
+nature not page-based: e.g. percpu memory. Perpcu memory is getting more and more used as a way
+to solve the contention problem on a multi-CPU system. Cgroups internals and bpf maps seem to be
+biggest users at this time, but likely new and new use cases will be added. It can easily take
+hundreds on MBs on a host, so if it's not accounted it creates an issue in container memory isolation.
+
+Each percpu allocation is scattered over multiple pages, but if it's small, it takes only a small
+portion of each page. Accounting such objects was nearly impossible on a per-page basis (duplicating
+chunk infrastructure will result in a terrible overhead), but with a per-object approach it's quite simple.
+Patchset [2] implements it.
+
+Links:
+[1] https://lore.kernel.org/linux-mm/20200527223404.1008856-1-guro@fb.com/
+[2] https://lore.kernel.org/linux-mm/20200528232508.1132382-1-guro@fb.com/
+
