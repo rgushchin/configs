@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
-from os.path import isdir
+from os.path import isdir, curdir, exists
 from os import listdir
+from sys import argv
 import subprocess
+
+
+gitdir = ''
+
 
 def check_no_old_patches():
     for f in listdir('.'):
@@ -39,13 +44,23 @@ def read_cover(obj):
 
 
 def check_git_repo():
+    global gitdir
+
     if isdir('.git'):
+        gitdir = curdir + '/.git'
         return True
+    if exists('.git'):
+        try:
+            with open('.git') as fd:
+                gitdir = fd.read().strip().split(' ')[1]
+                return True
+        except:
+            pass
     return False
 
 
 def current_branch():
-    with open('.git/HEAD') as fd:
+    with open(gitdir + '/HEAD') as fd:
         raw = fd.read().strip()
     if not raw.startswith('ref: refs/heads/'):
         raise Exception('Can\'t detect the current branch')
@@ -66,10 +81,16 @@ def guess_version():
     return version
 
 
-def format_patches(obj, cover, version):
+def format_patches(obj, cover, version, prefix):
     cmd = 'git format-patch %s --cover-letter' % obj
-    if version:
-        cmd += ' --subject-prefix=\"PATCH %s\"' % version
+    if version or prefix:
+        cmd += ' --subject-prefix=\"PATCH'
+        if prefix:
+            cmd += ' %s' % prefix
+        if version:
+            cmd += ' %s' % version
+        cmd += '\"'
+
     subprocess.getoutput(cmd)
 
     with open('0000-cover-letter.patch') as fd:
@@ -124,9 +145,14 @@ def main():
     cover_obj = find_cover()
     cover = read_cover(cover_obj)
 
+    prefix = None
+    if len(argv) == 2:
+        prefix = argv[1]
+        print('Prefix %s' % prefix)
+
     check_no_old_patches()
 
-    format_patches(cover_obj, cover, version)
+    format_patches(cover_obj, cover, version, prefix)
     check_patches()
 
     print('---\n')
