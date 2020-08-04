@@ -28,7 +28,7 @@
 
 (require 'whitespace)
 (setq-default whitespace-style '(face empty lines-tail trailing space-before-tab))
-;(global-whitespace-mode 1)
+(global-whitespace-mode 1)
 
 (defun parent-directory (dir)
   (unless (equal "/" dir)
@@ -132,40 +132,11 @@
 
 (add-to-list 'auto-mode-alist '("/tmp/mutt-.*" . mail-mode))
 
-(set-face-attribute 'default nil :height 110)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
+;(load-theme 'solarized-light)
+(load-theme 'leuven)
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(column-number-mode t)
- '(custom-safe-themes
-   (quote
-    ("d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default)))
- '(magit-commit-arguments (quote ("--signoff")))
- '(magit-log-arguments (quote ("--decorate" "-n256")))
- '(package-selected-packages (quote (magit magit-filenotify solarized-theme)))
- '(safe-local-variable-values
-   (quote
-    ((nxml-child-indent . 2)
-     (eval c-set-offset
-	   (quote arglist-close)
-	   0)
-     (eval c-set-offset
-	   (quote arglist-intro)
-	   (quote ++))
-     (eval c-set-offset
-	   (quote case-label)
-	   0)
-     (eval c-set-offset
-	   (quote statement-case-open)
-	   0)
-     (eval c-set-offset
-	   (quote substatement-open)
-	   0))))
- '(show-paren-mode t)
- '(tool-bar-mode nil))
-
-
-;(load-theme 'solarized-light)
-(load-theme 'leuven)
+ )
