@@ -1,0 +1,181 @@
+* Recent changes in the kernel memory accounting stack
+* How it looked like ~2 years ago
+** General assumptions
+I'll start with describing how the kernel memory accounting stack looked
+2 years ago. What was good, what was not so good, what kind of problems we've
+discovered and what caused us to made the changes I'll talk about today.
+At this time the kernel memory accounting was always on for both cgroup v1
+and cgroup v2. It started as an opt-in feature, but because it's really
+crucial to make container isolation complete, now it's on by default
+and can't be switched on or off for individual cgroups.
+In general, the kernel memory accounting followed principles of the user
+memory accounting. The accounting was performed by the page allocator.
+After charging a page to a memory cgroup, a pointer to the memory cgroup
+was saved in page->mem_cgroup. The cgroup was pinned in memory by each
+charged page.
+** Slabs
+Slab objects are usually smaller than a page, but the accounting was
+still implemented on a per-page basis. Slab (SLUB/SLAB) infrastructure
+was replicated for each memory cgroup. It has been done asynchronously:
+first several allocations were not accounted, but the first one scheduled
+an asynchronous creation of a slab cache, which was used for all
+subsequent allocations. So each memory cgroup has its own set of slab
+caches and slab pages. The code responsible for creation and destruction
+of per-cgroup slab infrastructure was quite complicated, and over time
+we've accumulated a lot of fixes. The fundamental reason for this is
+that there are several objects (cgroups, slab_caches and slab objects)
+with different and partially independent lifetime.
+** Socket memory
+One other exception was the socket memory accounting, which was not performed
+on allocating and releasing pages, but was hooked into the existing
+network memory control code. It remains in the same state now, so I won't
+touch it anymore.
+** Percpu memory
+Percpu memory wasn't accounted at all. Indeed, it's really tricky to account
+objects which are by their nature scattered over multiple pages, but likely
+are taking only a small part of each page, on a per-page basis. Replicating
+the whole percpu infrastructure for each memory cgroup is way too expensive,
+because of the size of a single percpu chunk.
+* Problems
+** Dying cgroups
+The first problem we've noticed was so called dying cgroups problem.
+Dying cgroup is a cgroup which has been deleted by a user, but still exists
+in the memory and consumes resources: CPU and memory. We've mostly fixed
+all places so that CPU overhead is not a serious concern, but given that
+a memory cgroup is a quite large object, like hundred kilobytes on a
+relatively small server, having thousands such objects is a noticeable
+waste of memory.
+We've discovered, that the number of dying memory cgroup grew with uptime
+on pretty much all machines in our fleet. I gave a talk on this topic on the
+last lsf/mm conference, so I won't go into details, but will briefly
+describe two parts of this problem related to the kernel memory accounting.
+*** Kernel stacks
+The first one is the accounting of kernel stacks. Depending on the architecture
+and kernel config, kernel stacks can be backed by slabs, generic pages and
+vmallocs. In the last case (which is now a default x86 configuration)
+the kernel has a small per-cpu cache for two stacks. On exit, we save
+a stack there, if there is a free slot. And on the next fork, we can grab
+a pre-allocated stack and save some time, because vmallocs are not so cheap.
+The problem with accounting is pretty obvious: if we charge a memory cgroup
+on the first allocation, and then give this stack to a process in a completely
+different cgroup, we're not only doing the accounting wrong, but also
+pin the original cgroup in memory by a potentially unrelated process.
+*** Solution
+To solve this problem we moved from charging on allocation and uncharging
+on freeing to charging on assigning the stack to a process and uncharging
+when the process quits and releases the stack.
+*** VFS cache
+The next problem was much bigger and harder to solve. The original slab
+memory accounting design assumes that all slab objects will be released
+at some point after the removal of a cgroup. In fact, often it's not the case.
+Imagine systemd running a service. Every time the service has to be restarted
+(for rotating logs, for updating the binary, for passing new arguments, simple
+OOMing), systemd will create a new cgroup. And the new service will most
+likely use almost the same set of inodes and dentries. Almost, but not exactly
+the same: something can changed. So with time the working set of kernel objects
+becomes scattered over multiple generations of the "same" cgroup. And any
+real memory pressure can't get rid of all this objects.
+*** Solution
+To solve this problem I've used a mechanism called slab reparenting. When
+a user deletes a cgroup, we move all charged slab pages to the parent cgroup.
+Because all charges and statistics are fully recursive, it's a valid operation.
+But to make it cheap, a trick was used: instead of walking over all slab pages,
+we've moved page->mem_cgroup => slab_cache->memcg_params.memcg. Because the
+relation between a slab page and a slab cache is stable, we can do it.
+And the refcounting moved too: charged pages stopped pinning the original
+memory cgroup. Instead they started pinning the slab cache, which was
+pinning the memory cgroup, but with an ability to switch over to the parent
+cgroup and release the original one.
+This patchset was merged in into 5.3 about a year ago. It mostly solved the
+dying cgroups problem, but now instead of pinning the original cgroup, we
+were pinning the original slab caches.
+** Memory overhead
+At about the same time I was debugging a completely unrelated problem
+(was comparing two machines with different kernels, or something like this),
+and I looked at /proc/slabinfo and found that there are 400k active
+task_structs. Looking at top and pid numbers it was very hard to believe
+that it was true. And numbers of other kernel objects were way too big
+too. So I started digging in and found out that what /proc/slabinfo shows
+is really far from the reality.
+*** Slab utilization
+If CONFIG_SLUB_CPU_PARTIAL is on, SLUB keeps a percpu list of partially
+filled slab pages, and these pages are mostly used for allocations.
+For performance reasons, /proc/slabinfo treats these pages as being filled
+with active objects, which is really far from being true. So according
+to /proc/slabinfo the slab utilization is always in high 90x, but in reality
+it must be lower.
+To get an idea of what the real number was, I wrote a drgn script and ran
+it manually on some hosts in our production, as well as on my laptop
+and virtual machines. And numbers I've got were quite surprising.
+The best I've seen was about 65%, the worst 15% and on average it was
+about 50%.
+Obviously I started to think why the slab utilization was so low, and
+the replication of the slab infrastructure for each memory cgroup was
+the first suspect. To prove this I've disabled the kernel memory accounting
+and checked the slab utilization. Vua-la, it was back to high 90%.
+And the total size of the slab memory was reduced accordingly.
+So what does it mean?
+It means that the real cost of the kernel memory accounting is not
+a pointer per page, which is mere 0.2%, but something close to 50%.
+And the next obvious question was how to make it more acceptable.
+* New slab controller
+So the simplest way to get the slab utilization back to where it is
+without the kernel memory accounting is to make sure the memory layout
+of slab objects is the same. And the simplest way to achieve it is to
+use a single slab cache and a single set of slab pages for all memory
+cgroups. But we still need a place to save an information about the memory
+cgroup, to which the object belongs.
+There are two options which come to the mind: put a pointer into the object
+(for instance, stick it at the end) or use a separate place. I've chosen
+the second option: I'm using a per-slab-page vector, which contains
+enough slots for each slab object. And I reused the page->mem_cgroup pointer,
+which is not in use anymore, to store a pointer to this vector.
+This approach has its pros and cons, we can discuss it later.
+** Per-object tracking -> byte-sized API
+The second problem to solve was that all memory cgroups code is dealing
+with pages. All charges are in pages, all statistics are in pages,
+all arguments are in pages. Switching all to bytes would add a lot of overhead,
+especially on 32bit platforms.
+So in order to account individual objects I had to introduce a byte-sized API.
+For charges I used a method, suggested by Johannes: I introduced bytes-sized
+per-cpu stocks which are working similar to page-sized per-cpu stock,
+but on top of them. And for statistics I simple converted memcg slab stats
+into bytes.
+** Reparenting
+To keep achievements of the slab reparenting in place, I had to keep reparenting
+working. So I couldn't save directly memory cgroup pointers. Instead I used
+an intermediate object, which behaved similar to slab cache: a connection
+between a slab object and this intermediate object is stable, but the
+intermediate object can be switched over to the parent cgroup.
+In the final version after many upstream discussions we ended up with merging
+byte-sized charging and reparenting into a single concept which is named
+obj_cgroup. Honestly, I'm still not exactly sure if won't separate them back
+in the future, because I see the reparenting mechanism quite useful by itself.
+* Results
+After I got the first prototype (it was actually quite fast and took maybe
+a couple of weeks), I had two main concerns:
+first, will the new scheme be more memory efficient? Indeed, a pointer per
+object is way more expensive than a pointer per page. So it wasn't obvious that
+the new scheme will be more efficient everywhere. Actually I thought that we'll
+need both and use different schemes for different slab caches.
+Second, a more fine-grained accounting is obviously more expensive. So I
+was concerned about possible CPU regressions.
+So I started verifying the new code on multiple different workloads, again,
+starting from my laptop and ending with various workloads in Facebook
+production: web back-ends, caches, databases, computing nodes, etc.
+To my pleasant surprise none of mine concerns materialized.
+
+XX% gain everywhere
+40+% on a typical SLUB configuration
+high XXX MB - X Gb on moderately-sized modern server
+** CPU overhead
+
+** Results
+Not so much.
+* Remaining questions
+** Embedding the memcg pointer
+
+** Reparenting of page-sized objects
+* Percpu memory accounting
+5.9
+* Thanks
