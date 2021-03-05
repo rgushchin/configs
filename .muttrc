@@ -44,3 +44,4 @@ unset pipe_decode
 
 macro index a '| git am'
 macro index A '! git am --abort'
+macro index R '! mbsync -a'
