@@ -1,3 +1,5 @@
+(setq gc-cons-threshold 100000000)
+
 (tool-bar-mode -1)
 (menu-bar-mode -1)
 (scroll-bar-mode -1)
@@ -9,26 +11,28 @@
       show-paren-mode t
       column-number-mode t
       vc-handled-backends nil
-      tramp-default-method "sshx"
-      tramp-password-prompt-regexp (concat "^.*"
-					   (regexp-opt
-					    '("passcode" "Passcode"
-					      "password" "Password") t)
-					   ".*:\0? *")
+      compilation-scroll-output t
+      ;; tramp-default-method "sshx"
+      ;; tramp-password-prompt-regexp (concat "^.*"
+      ;; 					   (regexp-opt
+      ;; 					    '("passcode" "Passcode"
+      ;; 					      "password" "Password") t)
+      ;; 					   ".*:\0? *")
 
       large-file-warning-threshold nil
       split-width-threshold 160
       split-height-threshold 16000
 
-      package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
-                         ("melpa" . "https://melpa.org/packages/")))
+      ;; package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
+      ;;                    ("melpa" . "https://melpa.org/packages/"))
+      )
 
-(require 'package)
-(package-initialize)
+;; (require 'package)
+;; (package-initialize)
 
 (require 'whitespace)
 (setq-default whitespace-style '(face empty lines-tail trailing space-before-tab))
-;(global-whitespace-mode 1)
+(global-whitespace-mode 1)
 
 (defun parent-directory (dir)
   (unless (equal "/" dir)
@@ -104,15 +108,6 @@
 
 ;(setq tags-file-name (concat (find-git-repo) "TAGS"))
 
-;; python mode for TARGETS files
-(setq auto-mode-alist (cons '("\\/TARGETS$" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.cconf" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.cinc" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.ctest" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.mcconf" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.thrift-cvalidator" . python-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.tw" . python-mode) auto-mode-alist))
-
 ;; Indentation
 (setq-default c-default-style "linux")
 (add-hook 'c-mode-common-hook
@@ -132,40 +127,4 @@
 
 (add-to-list 'auto-mode-alist '("/tmp/mutt-.*" . mail-mode))
 
-(set-face-attribute 'default nil :height 110)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(column-number-mode t)
- '(custom-safe-themes
-   (quote
-    ("d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default)))
- '(magit-commit-arguments (quote ("--signoff")))
- '(magit-log-arguments (quote ("--decorate" "-n256")))
- '(package-selected-packages (quote (magit magit-filenotify solarized-theme)))
- '(safe-local-variable-values
-   (quote
-    ((nxml-child-indent . 2)
-     (eval c-set-offset
-	   (quote arglist-close)
-	   0)
-     (eval c-set-offset
-	   (quote arglist-intro)
-	   (quote ++))
-     (eval c-set-offset
-	   (quote case-label)
-	   0)
-     (eval c-set-offset
-	   (quote statement-case-open)
-	   0)
-     (eval c-set-offset
-	   (quote substatement-open)
-	   0))))
- '(show-paren-mode t)
- '(tool-bar-mode nil))
-
-
-;(load-theme 'solarized-light)
 (load-theme 'leuven)
