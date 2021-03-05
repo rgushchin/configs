@@ -17,10 +17,10 @@ set trash = "+/Deleted Items"
 set record = ""
 
 set sort = reverse-date-received
+set sort_aux=reverse-last-date-received
 
 #set sort=threads
 #set sort_browser=date
-#set sort_aux=reverse-last-date-received
 
 set alias_file= ~/.mutt_aliases
 set sort_alias= alias
