@@ -8,7 +8,7 @@ set from=guro@fb.com # this is important some people have different email vs use
 set smtp_url="smtp://guro@fb.com@outlook.office365.com:587"
 set smtp_authenticators="login"
 
-set editor="emacs %s"
+set editor="emacs -nw %s"
 
 set folder = "~/.mail/fb"
 set spoolfile = "+/Inbox"
@@ -16,9 +16,11 @@ set postponed = "+/Drafts"
 set trash = "+/Deleted Items"
 set record = ""
 
-set sort=threads
-set sort_browser=date
-set sort_aux=reverse-last-date-received
+set sort = reverse-date-received
+
+#set sort=threads
+#set sort_browser=date
+#set sort_aux=reverse-last-date-received
 
 set alias_file= ~/.mutt_aliases
 set sort_alias= alias
@@ -37,3 +39,8 @@ set sidebar_visible=yes
 bind index,pager \CP sidebar-prev
 bind index,pager \CN sidebar-next
 bind index,pager \CO sidebar-open
+
+unset pipe_decode
+
+macro index a '| git am'
+macro index A '! git am --abort'
