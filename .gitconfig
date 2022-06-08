@@ -1,5 +1,5 @@
 [user]
-	email = guro@fb.com
+	email = roman.gushchin@linux.dev
 	name = Roman Gushchin
 [core]
 	editor = emacs -nw
@@ -10,3 +10,9 @@
 [sendemail]
 	aliasesFile = ~/.mutt_aliases
 	aliasFileType = mutt
+	smtpEncryption = ssl
+	smtpServer = smtp.migadu.com
+	smtpServerPort = 465
+	smtpUser = roman.gushchin@linux.dev
+[credential]
+	helper = store

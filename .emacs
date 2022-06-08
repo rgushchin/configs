@@ -81,11 +81,11 @@
 
 (defun insert-reviewed-by ()
   (interactive)
-  (insert "Reviewed-by: Roman Gushchin <guro@fb.com>"))
+  (insert "Reviewed-by: Roman Gushchin <roman.gushchin@linux.dev>"))
 
 (defun insert-acked-by ()
   (interactive)
-  (insert "Acked-by: Roman Gushchin <guro@fb.com>"))
+  (insert "Acked-by: Roman Gushchin <roman.gushchin@linux.dev>"))
 
 (require 'magit)
 

@@ -1,20 +1,20 @@
 # passwords
-source 'echo "$( pw=$( secret-tool lookup user guro@fb.com domain outlook.office365.com ); echo set smtp_pass=\"$pw\" )" |'
+source 'echo "$( pw=$( secret-tool lookup user roman.gushchin@linux.dev domain migadu.com ); echo set smtp_pass=\"$pw\" )" |'
 
 # for SMTP
-set use_envelope_from=yes
 set realname="Roman Gushchin"
-set from=guro@fb.com # this is important some people have different email vs user name
-set smtp_url="smtp://guro@fb.com@outlook.office365.com:587"
-set smtp_authenticators="login"
+set from=roman.gushchin@linux.dev
+set use_from=yes
+set smtp_url="smtps://roman.gushchin@linux.dev@smtp.migadu.com:465/"
+set ssl_force_tls = yes
 
 set editor="emacs -nw %s"
 
-set folder = "~/.mail/fb"
+set folder = "~/.mail/linux.dev"
 set spoolfile = "+/Inbox"
 set postponed = "+/Drafts"
-set trash = "+/Deleted Items"
-set record = ""
+set trash = "+/Trash"
+set record = "+/Sent"
 
 set sort = reverse-date-received
 set sort_aux=reverse-last-date-received
@@ -22,16 +22,18 @@ set sort_aux=reverse-last-date-received
 #set sort=threads
 #set sort_browser=date
 
+mailboxes "+/Inbox"
+mailboxes "+/Inbox/ToCc"
+mailboxes "+/Drafts"
+mailboxes "+/Sent"
+mailboxes "+/Junk"
+mailboxes "+/Trash"
+mailboxes "+/Archive"
+
 set alias_file= ~/.mutt_aliases
 set sort_alias= alias
 set reverse_alias=yes
 source $alias_file
-
-mailboxes "+/Inbox/"
-mailboxes "+/Inbox/mm"
-mailboxes "+/Inbox/kernel"
-mailboxes "+/Inbox/tasks"
-mailboxes "+/Inbox/alerts"
 
 set sidebar_width=20
 set sidebar_visible=yes
